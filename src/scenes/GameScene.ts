@@ -23,7 +23,7 @@ type GuestState = 'entering' | 'waiting' | 'eating' | 'leaving';
 
 class Guest {
   c: Phaser.GameObjects.Container;
-  img: Phaser.GameObjects.Image;
+  img: Phaser.GameObjects.Sprite;
   bubble: Phaser.GameObjects.Container;
   patFill: Phaser.GameObjects.Rectangle;
   order!: Recipe;
@@ -35,12 +35,15 @@ class Guest {
   table: Table;
   eatT = 0;
   paidFrac = 1;
+  private gi: number;
 
   constructor(scene: Phaser.Scene, table: Table, order: Recipe) {
     this.table = table;
     this.order = order;
     const gi = Phaser.Math.Between(0, 5);
-    this.img = scene.add.image(0, 0, 'guest_' + gi).setDisplaySize(56, 84);
+    this.gi = gi;
+    this.img = scene.add.sprite(0, 0, 'guest_' + gi + '_walk', 0).setDisplaySize(56, 84);
+    this.img.play('gwalk' + gi);
     scene.add.existing(this.img);
     this.c = scene.add.container(DOOR.x, DOOR.y + 30, [this.img]);
     this.c.setDepth(DOOR.y);
@@ -65,12 +68,25 @@ class Guest {
   sit() {
     this.state = 'waiting';
     this.bubble.setVisible(true);
+    this.img.stop();
+    this.img.setTexture('guest_' + this.gi);
     sfx.pop();
+  }
+
+  private setWalking(walking: boolean) {
+    if (walking && this.img.texture.key !== 'guest_' + this.gi + '_walk') {
+      this.img.setTexture('guest_' + this.gi + '_walk');
+      this.img.play('gwalk' + this.gi);
+    } else if (!walking && this.img.texture.key !== 'guest_' + this.gi) {
+      this.img.stop();
+      this.img.setTexture('guest_' + this.gi);
+    }
   }
 
   update(dt: number, scene: GameScene) {
     const s = dt / 1000;
     if (this.state === 'entering' || this.state === 'leaving') {
+      this.setWalking(true);
       const wp = this.waypoints[0];
       if (!wp) { this.finishWalk(scene); return; }
       const dx = wp.x - this.c.x, dy = wp.y - this.c.y;
@@ -81,24 +97,21 @@ class Guest {
       this.c.y += (dy / d) * step;
       this.img.setFlipX(dx < -2);
       this.c.setDepth(this.c.y);
-      // walk bob
-      this.img.y = Math.sin(performance.now() / 90) * 2.5;
     } else if (this.state === 'waiting') {
-      this.img.y = Math.sin(performance.now() / 500 + this.c.x) * 1.5;
+      this.setWalking(false);
       this.patience -= s;
       const f = Math.max(0, this.patience / this.maxPatience);
       this.patFill.setScale(Math.max(0.001, f), 1);
       this.patFill.setFillStyle(f > 0.5 ? 0x4fae5a : f > 0.25 ? 0xe8c93d : 0xd94f3d);
       if (this.patience <= 0) scene.guestAngry(this);
     } else if (this.state === 'eating') {
-      this.img.y = Math.abs(Math.sin(performance.now() / 160)) * -3;
+      this.setWalking(false);
       this.eatT -= s;
       if (this.eatT <= 0) scene.guestPaid(this);
     }
   }
 
   private finishWalk(scene: GameScene) {
-    this.img.y = 0;
     if (this.state === 'entering') this.sit();
     else scene.removeGuest(this);
   }
@@ -264,10 +277,21 @@ export class GameScene extends Phaser.Scene {
 
   // ---------------- player ----------------
   private buildPlayer() {
-    this.player = buildCharacter(this, this.save.char, 0.13);
+    this.player = buildCharacter(this, this.save.char, 0.9);
     this.player.setPosition(480, 470).setDepth(470);
     this.carriedImg = this.add.image(0, -72, 'food_0').setDisplaySize(40, 40).setVisible(false);
     this.player.add(this.carriedImg);
+    this.setPlayerAnim(false);
+  }
+
+  private setPlayerAnim(walking: boolean) {
+    const parts = (this.player as any).partSprites as Phaser.GameObjects.Sprite[] | undefined;
+    if (!parts) return;
+    for (const sp of parts) {
+      const base = sp.texture.key; // e.g. part_shirt
+      const want = base + (walking ? '_walk' : '_idle');
+      if (sp.anims.currentAnim?.key !== want) sp.play(want);
+    }
   }
 
   // ---------------- HUD ----------------
@@ -434,12 +458,9 @@ export class GameScene extends Phaser.Scene {
       const parts = (p as any).list as Phaser.GameObjects.Image[];
       if (vx < -0.1) parts.forEach(i => i.setFlipX(true));
       else if (vx > 0.1) parts.forEach(i => i.setFlipX(false));
-      p.y += 0; // depth already set
-      const bobY = Math.sin(performance.now() / 110) * 2;
-      parts.forEach(i => { if (i !== this.carriedImg) i.y = bobY; });
+      this.setPlayerAnim(true);
     } else {
-      const parts = (p as any).list as Phaser.GameObjects.Image[];
-      parts.forEach(i => { if (i !== this.carriedImg) i.y = 0; });
+      this.setPlayerAnim(false);
     }
   }
 

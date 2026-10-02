@@ -59,5 +59,9 @@ export class TitleScene extends Phaser.Scene {
     this.add.text(W / 2, 612, 'touch / mouse / WASD + E', {
       fontFamily: 'monospace', fontSize: '13px', color: '#8a6f4d',
     }).setOrigin(0.5);
+
+    this.add.text(W / 2, 628, 'Art: Anokolisa (Pixel Crawler) + CC0 Food Icons (OGA) — see CREDITS', {
+      fontFamily: 'monospace', fontSize: '11px', color: '#6f5a3d',
+    }).setOrigin(0.5);
   }
 }

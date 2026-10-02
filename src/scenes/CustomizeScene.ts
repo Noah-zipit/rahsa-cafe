@@ -5,28 +5,31 @@ import { defaultSave, saveSave } from '../systems/save';
 
 const W = 960, H = 640;
 
-// Builds a layered character container from part textures + tints.
+// Builds a layered character container from part spritesheets + tints.
+// Each part is a 10-frame strip (0-3 idle, 4-9 walk); frame 0 shown by default.
 export function buildCharacter(
   scene: Phaser.Scene, c: CharCustom, scale = 1,
 ): Phaser.GameObjects.Container {
   const cont = scene.add.container(0, 0);
-  const pants = scene.add.image(0, 0, 'part_pants').setTint(0x5a4632);
-  const shirt = scene.add.image(0, 0, 'part_shirt').setTint(c.shirt);
-  const skin = scene.add.image(0, 0, 'part_skin').setTint(c.skin);
-  const hair = scene.add.image(0, 0, 'part_hair' + c.hairStyle).setTint(c.hairColor);
+  const pants = scene.add.sprite(0, 0, 'part_pants', 0).setTint(0x5a4632);
+  const shirt = scene.add.sprite(0, 0, 'part_shirt', 0).setTint(c.shirt);
+  const skin = scene.add.sprite(0, 0, 'part_skin', 0).setTint(c.skin);
+  const hair = scene.add.sprite(0, 0, 'part_hair' + c.hairStyle, 0).setTint(c.hairColor);
   cont.add([pants, skin, shirt, hair]);
   cont.setScale(scale);
   (cont as any).setAppearance = (nc: CharCustom) => {
     shirt.setTint(nc.shirt);
     skin.setTint(nc.skin);
     hair.setTint(nc.hairColor);
-    const nh = scene.add.image(0, 0, 'part_hair' + nc.hairStyle).setTint(nc.hairColor);
+    const nh = scene.add.sprite(0, 0, 'part_hair' + nc.hairStyle, 0).setTint(nc.hairColor);
     const idx = cont.getIndex(hair);
     cont.remove(hair); hair.destroy();
     cont.addAt(nh, idx);
     (cont as any).hairImg = nh;
+    (cont as any).partSprites = [pants, skin, shirt, nh];
   };
   (cont as any).hairImg = hair;
+  (cont as any).partSprites = [pants, skin, shirt, hair];
   return cont;
 }
 
@@ -93,11 +96,13 @@ export class CustomizeScene extends Phaser.Scene {
 
     // Preview on a rug.
     this.add.image(220, 380, 'tile_rug').setDisplaySize(200, 200).setDepth(1);
-    const preview = buildCharacter(this, this.char, 0.34);
-    preview.setPosition(220, 360);
+    const preview = buildCharacter(this, this.char, 2.2);
+    preview.setPosition(220, 350);
     preview.setDepth(2);
     this.add.image(220, 470, 'shadow').setScale(2.4, 1.4).setDepth(1);
-    this.tweens.add({ targets: preview, y: 354, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    for (const sp of (preview as any).partSprites as Phaser.GameObjects.Sprite[]) {
+      sp.play(sp.texture.key + '_idle');
+    }
 
     const apply = () => {
       this.char = { skin: SKIN_TONES[this.skinIdx], hairStyle: this.hairIdx, hairColor: HAIR_COLORS[this.hairIdx], shirt: SHIRT_COLORS[this.shirtIdx] };

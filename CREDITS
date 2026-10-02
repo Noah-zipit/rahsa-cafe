@@ -1,0 +1,28 @@
+# RAHSA CAFE — Art Credits
+
+All in-game pixel art is genuine hand-made work by independent artists, used under
+permissive licenses. No AI-generated sprite art is used in the game.
+
+## Primary set — Anokolisa (AnomalyPixel)
+**"Pixel Crawler — Free Pack"** (top-down 16x16 medieval-fantasy RPG)
+Source: https://anokolisa.itch.io/free-pixel-art-asset-pack-topdown-tileset-rpg-16x16-sprites
+Covers: interior walls/floors, tavern furniture (tables, chairs, stoves, counters,
+bar, plants, shelves, doors, rugs), guest NPCs (Peasant, Tavern wench, Knight,
+Rogue, Wizard — with walk animations), player base body (with walk animations).
+
+License (author's Terms.txt): free for commercial/study/any project; may be freely
+altered in any shape, color or pattern; credit optional but appreciated; may not be
+resold as a standalone asset. Contact: AnomalyPixel@gmail.com
+Patreon: https://www.patreon.com/Anokolisa — Twitter: https://twitter.com/Anokolisa
+
+Player customization layers (skin/shirt/pants tints, 4 hairstyles) and guest palette
+variants were composed from this pack's sprites at build time (see build_assets.py).
+
+## Food icons — "CC0 Food Icons" (OpenGameArt.org)
+Source: https://opengameart.org/content/cc0-food-icons
+License: Creative Commons Zero (CC0) — public domain.
+Covers: the 8 dish icons (burger, pizza, salad, soup, cake, tea + composed curry /
+noodle bowls), by: thekingphoenix, Jetrel, Fleurman, bluecarrot16, 7Soul1,
+HomoHikka, MELLE, ArlanTR, Glitch, Dungeon Crawl Stone Soup, OpenClipart Library.
+
+Thank you to all the artists who share their work freely.
