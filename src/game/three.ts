@@ -1186,42 +1186,53 @@ export function buildMarketStall(): THREE.Group {
   return g;
 }
 
-/** Proper hotel facade above the dollhouse opening: upper floor + HOTEL sign + windows. */
+/** Hotel frontage that never occludes the dollhouse interior.
+ * The locked 40° diorama camera looks over the open front: any tall wall at the
+ * front plane bisects the play area (verified against every gameplay sightline).
+ * So the hotel reads as a low fascia band with the RAHSA HOTEL sign + side
+ * awnings at the front, plus a rooftop sign behind the building that sits above
+ * every interior sightline. */
 export function buildHotelFacade(): THREE.Group {
   const g = new THREE.Group();
-  // upper wall band across the front
-  const wall = box(14.4, 2.3, 0.35, 0xf0d9ae, 0, 4.55, 5.32); g.add(wall);
-  g.add(box(14.6, 0.28, 0.45, 0x8a5f36, 0, 5.8, 5.32)); // cornice
-  g.add(box(14.6, 0.3, 0.45, 0x6b4423, 0, 3.5, 5.32)); // base trim
-  // HOTEL sign
-  const sc = document.createElement('canvas'); sc.width = 512; sc.height = 112;
+  // Low fascia band across the front opening (y 3.35–3.8). Sightline math at the
+  // locked camera angle: clears the stoves, tables, beds, counter and door.
+  g.add(box(14.4, 0.45, 0.35, 0xf0d9ae, 0, 3.575, 5.32));
+  g.add(box(14.5, 0.1, 0.4, 0x8a5f36, 0, 3.32, 5.32)); // trim under the band
+  // RAHSA HOTEL sign on the band.
+  const sc = document.createElement('canvas'); sc.width = 512; sc.height = 80;
   const sx = sc.getContext('2d')!;
-  sx.fillStyle = '#6b4423'; sx.fillRect(0, 0, 512, 112);
-  sx.strokeStyle = '#e8a13d'; sx.lineWidth = 6; sx.strokeRect(8, 8, 496, 96);
-  sx.fillStyle = '#ffe9b8'; sx.font = 'bold 58px Georgia, serif'; sx.textAlign = 'center'; sx.textBaseline = 'middle';
-  sx.fillText('RAHSA HOTEL', 256, 58);
+  sx.fillStyle = '#6b4423'; sx.fillRect(0, 0, 512, 80);
+  sx.strokeStyle = '#e8a13d'; sx.lineWidth = 5; sx.strokeRect(6, 6, 500, 68);
+  sx.fillStyle = '#ffe9b8'; sx.font = 'bold 44px Georgia, serif'; sx.textAlign = 'center'; sx.textBaseline = 'middle';
+  sx.fillText('RAHSA HOTEL', 256, 42);
   const st = new THREE.CanvasTexture(sc); st.colorSpace = THREE.SRGBColorSpace;
-  const sign = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 0.79),
+  const sign = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.375),
     new THREE.MeshStandardMaterial({ map: st, roughness: 0.85 }));
-  sign.position.set(0, 4.62, 5.52); sign.rotation.y = 0; g.add(sign);
-  // upper windows with warm light
-  const winMat = new THREE.MeshStandardMaterial({ color: 0xffe9b8, emissive: 0xffc46a, emissiveIntensity: 0.8, roughness: 0.6 });
-  for (const wx of [-5.4, -3.2, 3.2, 5.4]) {
-    g.add(box(1.15, 1.35, 0.12, 0x5a3a22, wx, 4.55, 5.5));
-    const win = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 1.1), winMat);
-    win.position.set(wx, 4.55, 5.58); g.add(win);
-  }
-  // small balconies under two windows
-  for (const wx of [-4.3, 4.3]) {
-    g.add(box(1.7, 0.08, 0.5, 0x6b4423, wx, 3.95, 5.6));
-    for (let i = 0; i < 5; i++) g.add(box(0.06, 0.5, 0.06, 0x6b4423, wx - 0.7 + i * 0.35, 4.2, 5.78));
-  }
-  // awning strips over the ground-floor opening edges (don't occlude the view)
-  for (const wx of [-5.9, 5.9]) {
-    const awn = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 0.9),
+  sign.position.set(0, 3.575, 5.52); g.add(sign);
+  // Side awnings under the band (kept clear of the front-table sightlines).
+  for (const wx of [-6.6, 6.6]) {
+    const awn = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.8),
       new THREE.MeshStandardMaterial({ map: awningTexture(), roughness: 0.9, side: THREE.DoubleSide }));
-    awn.position.set(wx, 3.15, 5.7); awn.rotation.x = -0.45; g.add(awn);
+    awn.position.set(wx, 3.05, 5.6); awn.rotation.x = -0.45; g.add(awn);
   }
+  // Rooftop sign behind the building: y 5.8–7 at z=-7.2 sits above every
+  // interior sightline, so it can never hide gameplay.
+  for (const px of [-2.2, 2.2]) {
+    const pole = cyl(0.06, 0.08, 2.6, 0x6b4423, 8); pole.position.set(px, 4.6, -7.2); g.add(pole);
+  }
+  const rc = document.createElement('canvas'); rc.width = 512; rc.height = 128;
+  const rx = rc.getContext('2d')!;
+  rx.fillStyle = '#6b4423'; rx.fillRect(0, 0, 512, 128);
+  rx.strokeStyle = '#e8a13d'; rx.lineWidth = 6; rx.strokeRect(8, 8, 496, 112);
+  rx.fillStyle = '#ffe9b8'; rx.font = 'bold 56px Georgia, serif'; rx.textAlign = 'center'; rx.textBaseline = 'middle';
+  rx.fillText('RAHSA HOTEL', 256, 66);
+  const rt = new THREE.CanvasTexture(rc); rt.colorSpace = THREE.SRGBColorSpace;
+  const rsign = new THREE.Mesh(new THREE.PlaneGeometry(4.6, 1.15),
+    new THREE.MeshStandardMaterial({
+      map: rt, roughness: 0.85, side: THREE.DoubleSide,
+      emissive: 0xffc46a, emissiveIntensity: 0.22, emissiveMap: rt,
+    }));
+  rsign.position.set(0, 6.4, -7.2); g.add(rsign);
   return g;
 }
 
