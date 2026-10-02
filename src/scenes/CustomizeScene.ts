@@ -27,6 +27,7 @@ export function buildCharacter(
     cont.addAt(nh, idx);
     (cont as any).hairImg = nh;
     (cont as any).partSprites = [pants, skin, shirt, nh];
+    nh.play(nh.texture.key + '_idle');
   };
   (cont as any).hairImg = hair;
   (cont as any).partSprites = [pants, skin, shirt, hair];
