@@ -8,12 +8,21 @@ import { sfx } from './systems/audio';
 import { RECIPES, RECIPE_MAP, SHOP_ITEMS, ING_MAP, CharCustom } from './game/data';
 
 const root = document.getElementById('game')!;
-const isMobile = matchMedia('(pointer: coarse)').matches;
 
 const ui = new UI(root); // NOTE: UI clears #game, so create it before the canvas
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isMobile ? 1.5 : 2));
+// ---------- dynamic resolution: native device pixels first, fps governor as guard ----------
+// Render at the full native devicePixelRatio (no more 1.5x mobile cap that made
+// everything blurry). If the GPU can't hold ~50fps, step down through fractions
+// of native; step back up when there's sustained headroom.
+const nativeDpr = Math.min(window.devicePixelRatio || 1, 3);
+const DPR_RUNGS = [1, 0.85, 0.7, 0.55]; // fractions of nativeDpr
+let dprRung = 0;
+function applyDpr() {
+  renderer.setPixelRatio(Math.max(1, nativeDpr * DPR_RUNGS[dprRung]));
+}
+applyDpr();
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -195,9 +204,21 @@ window.addEventListener('resize', () => {
 
 // ---------------- main loop ----------------
 const clock = new THREE.Clock();
+let fpsEma = 60, lastGovT = performance.now(), upCooldownUntil = 0;
+function governDpr(now: number, dt: number) {
+  const fps = 1 / Math.max(dt, 1e-3);
+  fpsEma += (fps - fpsEma) * 0.05;
+  if (now - lastGovT < 2500) return;
+  if (fpsEma < 47 && dprRung < DPR_RUNGS.length - 1) {
+    dprRung++; applyDpr(); lastGovT = now; upCooldownUntil = now + 8000;
+  } else if (fpsEma > 57 && dprRung > 0 && now > upCooldownUntil) {
+    dprRung--; applyDpr(); lastGovT = now;
+  }
+}
 function loop() {
   requestAnimationFrame(loop);
   const dt = Math.min(0.05, clock.getDelta());
+  governDpr(performance.now(), dt);
   pollKeys();
   if (mode === 'title' && sim) sim.update(dt);
   if (mode === 'game' && sim) sim.update(dt);
