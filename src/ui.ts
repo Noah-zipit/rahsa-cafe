@@ -1,4 +1,4 @@
-import { Recipe, ShopItem, CharCustom, RECIPES, SKIN_TONES, HAIR_STYLES, HAIR_COLORS, SHIRT_COLORS, QUALITY_MULT } from './game/data';
+import { Recipe, ShopItem, CharCustom, RECIPES, SKIN_TONES, HAIR_STYLES, HAIR_COLORS, SHIRT_COLORS, QUALITY_MULT, INGREDIENTS, ING_MAP } from './game/data';
 import { SaveData } from './systems/save';
 import { HudState, SummaryData } from './game/sim';
 import { sfx } from './systems/audio';
@@ -48,6 +48,11 @@ export class UI {
   private clockLabel!: HTMLElement;
   private promptEl!: HTMLElement; private actionBtn!: HTMLButtonElement;
   private joyBase!: HTMLElement; private joyKnob!: HTMLElement;
+  private pantryStrip!: HTMLElement;
+  private rushChip: HTMLElement | null = null;
+  /** Assigned by main.ts: project world coords to CSS px on the canvas. */
+  worldToScreen: (x: number, y: number, z: number) => { x: number; y: number } | null = () => null;
+  private fxLayer: HTMLElement | null = null;
   private joyVec = { x: 0, z: 0 };
   private joyActive = false;
   private titleEl: HTMLElement | null = null;
@@ -148,6 +153,7 @@ export class UI {
       <div class="hud-left">
         <div class="hud-chip hud-day">Day 1</div>
         <div class="clockbar"><div class="clockfill"></div><div class="clocklabel">0:00</div></div>
+        <div class="pantry-strip"></div>
       </div>
       <div class="hud-right">
         <div class="hud-chip hud-coins">🪙 0</div>
@@ -158,6 +164,10 @@ export class UI {
     (h.querySelector('[data-a="shop"]') as HTMLButtonElement).onclick = () => { sfx.click(); this.onShop(); };
     (h.querySelector('[data-a="pause"]') as HTMLButtonElement).onclick = () => { sfx.click(); this.onPause(); };
     this.hudDay = h.querySelector('.hud-day')!;
+    this.pantryStrip = h.querySelector('.pantry-strip') as HTMLElement;
+    // FX layer for coin-fly / heart-float juice.
+    this.fxLayer = el('div', 'fx-layer');
+    this.root.appendChild(this.fxLayer);
     this.hudClock = h.querySelector('.clockfill')!;
     this.hudCoins = h.querySelector('.hud-coins')!;
     this.hudRep = h.querySelector('.hud-rep')!;
@@ -212,6 +222,7 @@ export class UI {
     this.joyBase.addEventListener('pointercancel', end);
   }
 
+  private pantryHtml = '';
   setHud(s: HudState) {
     if (!this.hudEl) return;
     this.hudDay.textContent = `Day ${s.day}`;
@@ -219,6 +230,19 @@ export class UI {
     this.clockLabel.textContent = s.timeLabel;
     this.hudCoins.textContent = `🪙 ${s.coins}`;
     this.hudRep.textContent = `⭐ ${s.rep}`;
+    // Pantry strip: emoji + stock count, dims when empty.
+    const html = INGREDIENTS.map((ing) => {
+      const n = s.pantry[ing.id] ?? 0;
+      return `<span class="pan${n <= 0 ? ' empty' : ''}" title="${ing.name}">${ing.emoji}<b>${n}</b></span>`;
+    }).join('');
+    if (html !== this.pantryHtml) { this.pantryHtml = html; this.pantryStrip.innerHTML = html; }
+    // Rush-hour state on the clock.
+    if (s.rush && !this.rushChip) {
+      this.rushChip = el('div', 'hud-chip rush-chip', '🔥 RUSH');
+      this.hudEl.querySelector('.hud-left')!.appendChild(this.rushChip);
+    } else if (!s.rush && this.rushChip) {
+      this.rushChip.remove(); this.rushChip = null;
+    }
   }
 
   setPrompt(label: string | null, action: string | null) {
@@ -231,6 +255,8 @@ export class UI {
   hideHud() {
     this.hudEl?.remove(); this.hudEl = null;
     this.promptEl?.remove(); this.actionBtn?.remove(); this.joyBase?.remove();
+    this.fxLayer?.remove(); this.fxLayer = null;
+    this.rushChip = null; this.pantryHtml = '';
   }
 
   // ---------------- panels ----------------
@@ -243,22 +269,36 @@ export class UI {
     (p.querySelector('.x') as HTMLButtonElement).onclick = () => { sfx.click(); close(); (this as { onPanelClose: () => void }).onPanelClose?.(); };
     p.addEventListener('pointerdown', (e) => { if (e.target === p) { close(); (this as { onPanelClose: () => void }).onPanelClose?.(); } });
     this.panelLayer.appendChild(p);
+    // Smooth panel transition.
+    requestAnimationFrame(() => requestAnimationFrame(() => p.classList.add('open')));
     return { body, close, panel: p };
   }
   onPanelClose: () => void = () => {};
   closePanel() { this.panelLayer.innerHTML = ''; }
 
   // ---- cook: recipe list -> timing minigame ----
-  showCook(recipes: Recipe[], stoveLevel: number, onDone: (r: Recipe, q: 'perfect' | 'good' | 'burnt') => void, onClose: () => void) {
+  showCook(recipes: Recipe[], stoveLevel: number, pantry: Record<string, number>,
+      onDone: (r: Recipe, q: 'perfect' | 'good' | 'burnt') => void, onClose: () => void) {
     this.onPanelClose = onClose;
     const { body, close } = this.openPanel('🍳 Recipe Book');
     const list = el('div', 'recipe-list');
     recipes.forEach((r) => {
-      const row = el('button', 'recipe-row');
+      const missing = r.needs.filter((id) => (pantry[id] ?? 0) <= 0);
+      const row = el('button', 'recipe-row' + (missing.length ? ' missing' : '')) as HTMLButtonElement;
       row.append(dishIconImg(r.id, 52));
-      const mid = el('div', 'recipe-mid', `<b>${r.name}</b><span>${r.price}c · ${r.time}s</span>`);
+      const needs = r.needs.map((id) => {
+        const ok = (pantry[id] ?? 0) > 0;
+        return `<span class="${ok ? '' : 'miss'}">${ING_MAP[id].emoji}</span>`;
+      }).join(' ');
+      const mid = el('div', 'recipe-mid',
+        `<b>${r.name}</b><span>${r.price}c · ${r.time}s</span><span class="needs">${needs}</span>`);
       row.append(mid);
-      row.onclick = () => { sfx.click(); this.cookMinigame(body, close, r, stoveLevel, onDone); };
+      if (missing.length) {
+        row.append(el('div', 'miss-note', 'Missing: ' + missing.map((id) => ING_MAP[id].name).join(', ')));
+        row.disabled = true;
+      } else {
+        row.onclick = () => { sfx.click(); this.cookMinigame(body, close, r, stoveLevel, onDone); };
+      }
       list.appendChild(row);
     });
     body.appendChild(list);
@@ -308,6 +348,84 @@ export class UI {
     stopBtn.onclick = stop;
   }
 
+  // ---- market: buy ingredients ----
+  showMarket(getState: () => { coins: number; pantry: Record<string, number> },
+      onBuy: (id: string, qty: number) => boolean, onClose: () => void) {
+    this.onPanelClose = onClose;
+    const { body } = this.openPanel('🧺 Market Stall');
+    const render = () => {
+      const { coins, pantry } = getState();
+      body.innerHTML = '';
+      body.append(el('div', 'shop-coins', `🪙 ${coins} coins <span class="market-sub">— fresh ingredients</span>`));
+      const list = el('div', 'recipe-list');
+      INGREDIENTS.forEach((ing) => {
+        const row = el('div', 'market-row');
+        row.append(el('div', 'market-emoji', ing.emoji));
+        row.append(el('div', 'recipe-mid',
+          `<b>${ing.name}</b><span>${ing.price}c each · you have <b>${pantry[ing.id] ?? 0}</b></span>`));
+        const qw = el('div', 'qty-wrap');
+        let qty = 1;
+        const qtyLabel = el('span', 'qty', '×1');
+        const minus = el('button', 'btn small', '−') as HTMLButtonElement;
+        const plus = el('button', 'btn small', '+') as HTMLButtonElement;
+        const buy = el('button', 'btn small primary', '') as HTMLButtonElement;
+        const upd = () => {
+          qtyLabel.textContent = '×' + qty;
+          buy.textContent = `Buy ${ing.price * qty}c`;
+          buy.classList.toggle('disabled', coins < ing.price * qty);
+        };
+        minus.onclick = () => { sfx.click(); if (qty > 1) { qty--; upd(); } };
+        plus.onclick = () => { sfx.click(); if (qty < 10) { qty++; upd(); } };
+        buy.onclick = () => { if (onBuy(ing.id, qty)) render(); else { sfx.angry(); this.toast('Not enough coins'); } };
+        upd();
+        qw.append(minus, qtyLabel, plus, buy);
+        row.append(qw);
+        list.appendChild(row);
+      });
+      body.appendChild(list);
+    };
+    render();
+  }
+
+  // ---- banner (rush / VIP / critic slide-ins) ----
+  banner(title: string, sub: string) {
+    const b = el('div', 'banner', `<b>${title}</b><span>${sub}</span>`);
+    this.toastLayer.appendChild(b);
+    requestAnimationFrame(() => b.classList.add('show'));
+    sfx.banner();
+    setTimeout(() => { b.classList.remove('show'); setTimeout(() => b.remove(), 500); }, 3400);
+  }
+
+  // ---- world-space juice: coin flies to HUD, hearts float up ----
+  fx(kind: 'coin' | 'hearts', x: number, y: number, z: number) {
+    if (!this.fxLayer || !this.hudEl) return;
+    const p = this.worldToScreen(x, y, z);
+    if (!p) return;
+    if (kind === 'coin') {
+      const c = el('div', 'fx-coin', '🪙');
+      c.style.left = p.x + 'px'; c.style.top = p.y + 'px';
+      this.fxLayer.appendChild(c);
+      const t = this.hudCoins.getBoundingClientRect();
+      const r = this.root.getBoundingClientRect();
+      const dx = t.left + t.width / 2 - (r.left + p.x);
+      const dy = t.top + t.height / 2 - (r.top + p.y);
+      requestAnimationFrame(() => { c.style.transform = `translate(${dx}px, ${dy}px) scale(0.5)`; c.style.opacity = '0.15'; });
+      setTimeout(() => {
+        c.remove();
+        this.hudCoins.classList.remove('bump'); void this.hudCoins.offsetWidth;
+        this.hudCoins.classList.add('bump');
+      }, 700);
+    } else {
+      for (let i = 0; i < 3; i++) {
+        const h = el('div', 'fx-heart', '❤');
+        h.style.left = (p.x + (Math.random() - 0.5) * 44) + 'px';
+        h.style.top = p.y + 'px';
+        h.style.animationDelay = (i * 0.12) + 's';
+        this.fxLayer.appendChild(h);
+        setTimeout(() => h.remove(), 1500);
+      }
+    }
+  }
   // ---- shop ----
   showShop(items: ShopItem[], save: SaveData,
       onBuy: (it: ShopItem) => boolean, onClose: () => void) {
@@ -370,13 +488,28 @@ export class UI {
     this.onPanelClose = next;
     body.innerHTML = `
       <div class="summary">
-        <div class="sum-row"><span>Guests served</span><b>${d.served}</b></div>
-        <div class="sum-row"><span>Food revenue</span><b>+${d.revenue}c</b></div>
-        <div class="sum-row"><span>Room income</span><b>+${d.roomsIncome}c</b></div>
-        <div class="sum-row"><span>Angry walkouts</span><b>${d.angry}</b></div>
+        <div class="sum-row"><span>Guests served</span><b data-n="${d.served}" data-pre="" data-suf="">0</b></div>
+        ${d.vips ? `<div class="sum-row vip"><span>🌟 VIP guests</span><b data-n="${d.vips}" data-pre="" data-suf="">0</b></div>` : ''}
+        <div class="sum-row"><span>Food revenue</span><b data-n="${d.revenue}" data-pre="+" data-suf="c">+0c</b></div>
+        <div class="sum-row"><span>Room income</span><b data-n="${d.roomsIncome}" data-pre="+" data-suf="c">+0c</b></div>
+        <div class="sum-row"><span>Angry walkouts</span><b data-n="${d.angry}" data-pre="" data-suf="">0</b></div>
         <div class="sum-row total"><span>Reputation</span><b>⭐ ${d.rep}</b></div>
-        <div class="sum-row total"><span>Coins</span><b>🪙 ${d.coins}</b></div>
-      </div>`;
+        <div class="sum-row total"><span>Coins</span><b data-n="${d.coins}" data-pre="🪙 " data-suf="">🪙 0</b></div>
+      </div>
+      ${d.criticNote ? `<div class="critic-note">${d.criticNote}</div>` : ''}`;
+    // Count-up animation.
+    body.querySelectorAll<HTMLElement>('[data-n]').forEach((b) => {
+      const target = parseInt(b.dataset.n ?? '0', 10);
+      const pre = b.dataset.pre ?? '', suf = b.dataset.suf ?? '';
+      const t0 = performance.now();
+      const tick = (now: number) => {
+        const f = Math.min(1, (now - t0) / 900);
+        const v = Math.round(target * (1 - Math.pow(1 - f, 3)));
+        b.textContent = pre + v + suf;
+        if (f < 1) requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    });
     const b = el('button', 'btn primary big block', `Start Day ${d.day + 1} →`);
     b.onclick = () => { sfx.click(); next(); };
     body.appendChild(b);

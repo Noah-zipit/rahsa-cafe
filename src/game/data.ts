@@ -6,18 +6,62 @@ export interface Recipe {
   cost: number; // shop unlock price, 0 = starter
   desc: string;
   time: number; // cook time, seconds
+  needs: string[]; // ingredient ids consumed per cook
 }
 
-export const RECIPES: Recipe[] = [
-  { id: 'curry',   name: 'Curry Rice',   price: 12, icon: 'food_0', cost: 0,  desc: 'House special. Warm and hearty.', time: 8 },
-  { id: 'noodles', name: 'Noodle Bowl',  price: 10, icon: 'food_1', cost: 0,  desc: 'Slurpy comfort in a bowl.', time: 7 },
-  { id: 'tea',     name: 'Masala Tea',   price: 6,  icon: 'food_7', cost: 0,  desc: 'Spiced, steaming, perfect.', time: 5 },
-  { id: 'soup',    name: 'Tomato Soup',  price: 9,  icon: 'food_5', cost: 45, desc: 'Slow-simmered classic.', time: 9 },
-  { id: 'salad',   name: 'Garden Salad', price: 11, icon: 'food_4', cost: 50, desc: 'Crisp and fresh.', time: 6 },
-  { id: 'burger',  name: 'Cafe Burger',  price: 16, icon: 'food_2', cost: 60, desc: 'Juicy, stacked high.', time: 10 },
-  { id: 'cake',    name: 'Choco Cake',   price: 14, icon: 'food_6', cost: 70, desc: 'A sweet finish.', time: 12 },
-  { id: 'pizza',   name: 'Woodfire Pizza', price: 18, icon: 'food_3', cost: 80, desc: 'Blistered and bubbly.', time: 14 },
+export interface Ingredient {
+  id: string;
+  name: string;
+  emoji: string;
+  price: number; // market price per unit
+}
+
+export const INGREDIENTS: Ingredient[] = [
+  { id: 'tomato', name: 'Tomato',    emoji: '🍅', price: 3 },
+  { id: 'cheese', name: 'Cheese',    emoji: '🧀', price: 4 },
+  { id: 'flour',  name: 'Flour',     emoji: '🌾', price: 3 },
+  { id: 'rice',   name: 'Rice',      emoji: '🍚', price: 3 },
+  { id: 'herbs',  name: 'Herbs',     emoji: '🌿', price: 2 },
+  { id: 'meat',   name: 'Meat',      emoji: '🥩', price: 6 },
+  { id: 'fish',   name: 'Fish',      emoji: '🐟', price: 6 },
+  { id: 'potato', name: 'Potato',    emoji: '🥔', price: 3 },
+  { id: 'egg',    name: 'Egg',       emoji: '🥚', price: 2 },
+  { id: 'choco',  name: 'Chocolate', emoji: '🍫', price: 5 },
 ];
+export const ING_MAP: Record<string, Ingredient> = Object.fromEntries(INGREDIENTS.map((i) => [i.id, i]));
+export const PANTRY_START = 4; // units of each ingredient on a fresh save
+
+export const RECIPES: Recipe[] = [
+  { id: 'curry',   name: 'Curry Rice',   price: 12, icon: 'food_0', cost: 0,  desc: 'House special. Warm and hearty.', time: 8,  needs: ['rice', 'herbs', 'meat'] },
+  { id: 'noodles', name: 'Noodle Bowl',  price: 10, icon: 'food_1', cost: 0,  desc: 'Slurpy comfort in a bowl.', time: 7,  needs: ['flour', 'egg', 'herbs'] },
+  { id: 'tea',     name: 'Masala Tea',   price: 6,  icon: 'food_7', cost: 0,  desc: 'Spiced, steaming, perfect.', time: 5,  needs: ['herbs'] },
+  { id: 'soup',    name: 'Tomato Soup',  price: 9,  icon: 'food_5', cost: 45, desc: 'Slow-simmered classic.', time: 9,  needs: ['tomato', 'potato'] },
+  { id: 'salad',   name: 'Garden Salad', price: 11, icon: 'food_4', cost: 50, desc: 'Crisp and fresh.', time: 6,  needs: ['tomato', 'herbs', 'egg'] },
+  { id: 'burger',  name: 'Cafe Burger',  price: 16, icon: 'food_2', cost: 60, desc: 'Juicy, stacked high.', time: 10, needs: ['meat', 'cheese', 'flour'] },
+  { id: 'cake',    name: 'Choco Cake',   price: 14, icon: 'food_6', cost: 70, desc: 'A sweet finish.', time: 12, needs: ['flour', 'egg', 'choco'] },
+  { id: 'pizza',   name: 'Woodfire Pizza', price: 18, icon: 'food_3', cost: 80, desc: 'Blistered and bubbly.', time: 14, needs: ['flour', 'cheese', 'tomato'] },
+  { id: 'fishcurry', name: 'Fish Curry', price: 20, icon: 'food_8', cost: 0,  desc: 'Coastal heat, coconut warmth.', time: 12, needs: ['fish', 'rice', 'herbs'] },
+  { id: 'omelette',  name: 'Cheese Omelette', price: 13, icon: 'food_9', cost: 0,  desc: 'Fluffy, golden, melty.', time: 7,  needs: ['egg', 'cheese', 'herbs'] },
+  { id: 'meatpie',   name: 'Meat Pie',   price: 19, icon: 'food_10', cost: 90, desc: 'Flaky lattice, rich filling.', time: 13, needs: ['flour', 'meat', 'potato'] },
+  { id: 'fishchips', name: 'Fish & Chips', price: 17, icon: 'food_11', cost: 85, desc: 'Crispy catch, golden chips.', time: 11, needs: ['fish', 'potato'] },
+];
+
+// ---------- expansion: VIPs, rush hours, food critic ----------
+export const VIP_CHANCE = 0.12;          // per spawn, once day >= 2 and rep >= 55
+export const VIP_MIN_PRICE = 13;         // VIPs only order dishes this pricey or more
+export const VIP_TIP_MULT = 1.5;         // pay multiplier for VIPs
+export const VIP_PATIENCE_MULT = 0.7;    // VIPs are impatient
+export const RUSH_TIMES = [55, 125];     // dayT seconds: lunch + dinner rush
+export const RUSH_DURATION = 45;
+export const RUSH_SPAWN_DIV = 2;         // spawn interval halved during rush
+export const RUSH_TIP_MULT = 1.2;
+export const CRITIC_WINDOW: [number, number] = [50, 110]; // dayT window for the critic visit
+export const CRITIC_REP_WIN = 8;
+export const CRITIC_REP_LOSE = -8;
+
+// Market stall position in the city square (front-left of the cafe).
+export const MARKET_POS = { x: -8.2, z: 7.6 };
+export const MARKET_INTERACT_R = 2.2;
 
 export type Quality = 'perfect' | 'good' | 'burnt';
 export const QUALITY_MULT: Record<Quality, number> = { perfect: 1.5, good: 1.0, burnt: 0.6 };
@@ -88,9 +132,10 @@ export const KITCHEN_POS = {
 export const ROOM_SPOTS = [{ x: 5.55, z: 2.2 }, { x: 5.55, z: 3.3 }, { x: 5.55, z: 4.35 }];
 export const ROOM_NIGHTLY = 25;
 export const DOOR_POS = { x: 0, z: 5.4 };
-export const GUEST_SPAWN = { x: 0, z: 7.2 };
+export const GUEST_SPAWN = { x: 6, z: 12 };
 export const PLAYER_START = { x: 0, z: 3.4 };
-export const FLOOR_BOUNDS = { x0: -6.6, x1: 6.6, z0: -4.6, z1: 5.0 };
+// Plaza bounds: the player can walk out the front into the city square (market!).
+export const FLOOR_BOUNDS = { x0: -10, x1: 10, z0: -4.6, z1: 10 };
 
 export const SHOP_ITEMS: ShopDef[] = [
   {

@@ -47,6 +47,9 @@ export class Sfx {
   perfect(){ this.ensure(); [523, 659, 784, 1047].forEach((f, i) => this.tone(f, 0.16, 'triangle', 0.7, i * 0.08)); }
   dayEnd() { this.ensure(); [392, 440, 523, 587].forEach((f, i) => this.tone(f, 0.22, 'sine', 0.6, i * 0.13)); }
   buy()    { this.ensure(); this.tone(700, 0.08, 'triangle', 0.6, 0, 1050); this.tone(1050, 0.12, 'triangle', 0.5, 0.08); }
+  rush()   { this.ensure(); [523, 659, 784].forEach((f, i) => this.tone(f, 0.14, 'triangle', 0.7, i * 0.1)); this.tone(1047, 0.24, 'triangle', 0.7, 0.3); }
+  vip()    { this.ensure(); [784, 988, 1175, 1568].forEach((f, i) => this.tone(f, 0.16, 'sine', 0.6, i * 0.09)); }
+  banner() { this.ensure(); [392, 523, 659, 784].forEach((f, i) => this.tone(f, 0.16, 'triangle', 0.65, i * 0.11)); }
 }
 
 export const sfx = new Sfx();

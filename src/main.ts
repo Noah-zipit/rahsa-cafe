@@ -2,10 +2,10 @@ import * as THREE from 'three';
 import './style.css';
 import { UI } from './ui';
 import { CafeSim, SummaryData } from './game/sim';
-import { makeCharacter, setupLights, frameCamera, CharParts } from './game/three';
+import { makeCharacter, setupLights, frameCamera, panCamera, zoomCamera, resetCameraView, CharParts } from './game/three';
 import { loadSave, saveSave, clearSave, defaultSave } from './systems/save';
 import { sfx } from './systems/audio';
-import { RECIPES, RECIPE_MAP, SHOP_ITEMS, CharCustom } from './game/data';
+import { RECIPES, RECIPE_MAP, SHOP_ITEMS, ING_MAP, CharCustom } from './game/data';
 
 const root = document.getElementById('game')!;
 const isMobile = matchMedia('(pointer: coarse)').matches;
@@ -41,9 +41,9 @@ async function showTitle() {
   sim = new CafeSim();
   sim.hooks = {
     hud() {}, prompt() {},
-    openCook() {}, openShop() {}, openPause() {},
+    openCook() {}, openShop() {}, openMarket() {}, openPause() {},
     openSummary() { sim?.nextDay(); },
-    toast() {},
+    toast() {}, banner() {}, fx() {},
   };
   await sim.init(window.innerWidth / window.innerHeight);
   sim.paused = false; // attract mode: the cafe runs itself behind the title
@@ -120,13 +120,20 @@ async function startGame() {
     prompt: (label, action) => ui.setPrompt(label, action),
     openCook: (stoveIdx) => {
       const unlocked = RECIPES.filter((r) => S.save.recipes.includes(r.id));
-      ui.showCook(unlocked, S.stoveLevel,
+      ui.showCook(unlocked, S.stoveLevel, { ...S.save.pantry },
         (r, q) => S.finishCookSelect(r, q),
         () => S.cancelCook());
       void stoveIdx;
     },
     openShop: () => {
       ui.showShop(SHOP_ITEMS, S.save, (it) => S.buy(it), () => { S.paused = false; });
+    },
+    openMarket: () => {
+      ui.showMarket(
+        () => ({ coins: S.save.coins, pantry: { ...S.save.pantry } }),
+        (id, qty) => S.buyIngredient(id, qty),
+        () => { S.paused = false; },
+      );
     },
     openPause: () => {
       ui.showPause(
@@ -138,6 +145,8 @@ async function startGame() {
     },
     openSummary: (d: SummaryData) => ui.showSummary(d, () => S.nextDay()),
     toast: (t) => ui.toast(t),
+    banner: (t, s) => ui.banner(t, s),
+    fx: (k, x, y, z) => ui.fx(k, x, y, z),
   };
   ui.onShop = () => { S.paused = true; S.hooks.openShop(); };
   ui.onPause = () => { S.paused = true; S.hooks.openPause(); };
@@ -202,11 +211,125 @@ function loop() {
 // ---------------- audio unlock + mute ----------------
 window.addEventListener('pointerdown', () => sfx.ensure(), { once: true });
 
+// ---------------- camera pan / zoom + tap-to-move ----------------
+// Diorama angle stays exactly as approved; the rig pans (drag) and dollies (zoom).
+// Tap = interact, drag = pan — disambiguated by movement threshold. The joystick
+// is a UI overlay above the canvas, so it always keeps priority over camera drags.
+const camPointers = new Map<number, { x: number; y: number }>();
+let camMode: 'none' | 'tap' | 'pan' | 'pinch' = 'none';
+let pinchDist = 0;
+let downX = 0, downY = 0, downButton = 0;
+let lastTapAt = 0;
+
+const canvas = () => renderer.domElement;
+canvas().style.touchAction = 'none';
+canvas().addEventListener('contextmenu', (e) => e.preventDefault());
+
+function gameCam() {
+  return mode === 'game' && sim && activeCamera === sim.camera ? sim.camera : null;
+}
+
+canvas().addEventListener('wheel', (e) => {
+  const cam = gameCam();
+  if (!cam || !sim) return;
+  e.preventDefault();
+  zoomCamera(e.deltaY < 0 ? 1.12 : 1 / 1.12);
+}, { passive: false });
+
+canvas().addEventListener('pointerdown', (e) => {
+  camPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (camPointers.size === 2) {
+    camMode = 'pinch';
+    const [a, b] = [...camPointers.values()];
+    pinchDist = Math.hypot(a.x - b.x, a.y - b.y);
+  } else if (camPointers.size === 1) {
+    camMode = 'tap';
+    downX = e.clientX; downY = e.clientY; downButton = e.button;
+  }
+});
+
+canvas().addEventListener('pointermove', (e) => {
+  if (!camPointers.has(e.pointerId)) return;
+  const cam = gameCam();
+  const prev = camPointers.get(e.pointerId)!;
+  if (camMode === 'pinch' && camPointers.size === 2) {
+    camPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    const [a, b] = [...camPointers.values()];
+    const d = Math.hypot(a.x - b.x, a.y - b.y);
+    if (cam && sim && pinchDist > 0) zoomCamera(d / pinchDist);
+    pinchDist = d;
+  } else if (camMode === 'tap' || camMode === 'pan') {
+    const moved = Math.hypot(e.clientX - downX, e.clientY - downY);
+    if (camMode === 'tap' && moved > 12) camMode = 'pan';
+    if (camMode === 'pan') {
+      const dx = e.clientX - prev.x, dy = e.clientY - prev.y;
+      // Desktop pans with right/middle-drag; touch pans with any one-finger drag.
+      const mayPan = e.pointerType !== 'mouse' || downButton === 1 || downButton === 2;
+      if (cam && sim && mayPan) panCamera(-dx * 0.022, dy * 0.022);
+      camPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    }
+  }
+});
+
+function handleTap(cx: number, cy: number) {
+  if (mode !== 'game' || !sim || sim.paused) return;
+  const now = performance.now();
+  if (now - lastTapAt < 300 && sim) { resetCameraView(); lastTapAt = 0; return; }
+  lastTapAt = now;
+  const rect = renderer.domElement.getBoundingClientRect();
+  const nx = ((cx - rect.left) / rect.width) * 2 - 1;
+  const ny = -((cy - rect.top) / rect.height) * 2 + 1;
+  const target = sim.pickInteractable(nx, ny);
+  if (target) {
+    const pt = sim.interactPoint(target);
+    sim.tapMoveTo(pt.x, pt.z, target);
+    return;
+  }
+  // Tap on the ground: walk there.
+  const rc = new THREE.Raycaster();
+  rc.setFromCamera(new THREE.Vector2(nx, ny), sim.camera);
+  const ground = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+  const p = new THREE.Vector3();
+  if (rc.ray.intersectPlane(ground, p)) sim.tapMoveTo(p.x, p.z);
+}
+
+const endCamPointer = (e: PointerEvent) => {
+  const wasTap = camMode === 'tap';
+  camPointers.delete(e.pointerId);
+  if (wasTap && camPointers.size === 0) handleTap(e.clientX, e.clientY);
+  if (camPointers.size === 0) camMode = 'none';
+  else if (camPointers.size === 1) {
+    camMode = 'tap';
+    const [p] = [...camPointers.values()];
+    downX = p.x; downY = p.y;
+  }
+};
+canvas().addEventListener('pointerup', endCamPointer);
+canvas().addEventListener('pointercancel', endCamPointer);
+
+// World → screen projection for UI juice (coin fly, hearts).
+ui.worldToScreen = (x: number, y: number, z: number) => {
+  if (!activeCamera) return null;
+  const v = new THREE.Vector3(x, y, z).project(activeCamera);
+  if (v.z > 1) return null;
+  const rect = renderer.domElement.getBoundingClientRect();
+  return { x: (v.x * 0.5 + 0.5) * rect.width, y: (-v.y * 0.5 + 0.5) * rect.height };
+};
+
 // ---------------- debug hooks ----------------
 (window as unknown as { __rahsa: unknown }).__rahsa = {
   get sim() { return sim; },
   get mode() { return mode; },
   spawnGuest: (recipe?: string) => sim?.spawnGuest(recipe),
+  spawnVip: (recipe?: string) => sim?.spawnGuest(recipe, true),
+  spawnCritic: () => sim?.spawnCritic(),
+  triggerRush: () => { if (sim) { sim.rushT = 45; sim.rushFired = [true, true]; ui.banner('🍽️ Lunch Rush!', 'Guests are pouring in — +20% tips for 45s'); } },
+  buy: (id: string, qty = 1) => sim?.buyIngredient(id, qty),
+  pantry: () => (sim ? { ...sim.save.pantry } : null),
+  missing: (id: string) => sim?.missingFor(RECIPE_MAP[id]),
+  zoom: (f: number) => zoomCamera(f),
+  pan: (dx: number, dz: number) => panCamera(dx, dz),
+  resetCam: () => resetCameraView(),
   cook: (id: string, q: 'perfect' | 'good' | 'burnt' = 'good') => {
     const r = RECIPE_MAP[id]; if (sim && r) sim.finishCookSelect(r, q);
   },
@@ -225,11 +348,14 @@ window.addEventListener('pointerdown', () => sfx.ensure(), { once: true });
   interact: () => sim?.doInteract(),
   state: () => sim ? {
     mode, coins: sim.save.coins, rep: sim.save.rep, day: sim.save.day,
-    guests: sim.guests.map((g) => ({ state: g.state, recipe: g.recipe.id, patience: Math.round(g.patience) })),
+    guests: sim.guests.map((g) => ({ state: g.state, recipe: g.recipe.id, patience: Math.round(g.patience), vip: g.vip, critic: g.critic })),
     dishes: sim.dishes.map((d) => d.dish.recipe.id),
     carrying: sim.player.carry?.recipe.id ?? null,
     cooks: sim.cooks.length,
     dayT: Math.round(sim.dayT),
+    rush: sim.rushT > 0, rushT: Math.round(sim.rushT),
+    pantry: { ...sim.save.pantry },
+    recipes: [...sim.save.recipes],
   } : null,
   startGame,
 };
