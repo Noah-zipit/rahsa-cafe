@@ -11,9 +11,19 @@ counter). Via https://poly.pizza (model pages credit "Kenney", CC0).
 Kitchen Sink, Kitchen Fridge, Small Table, Round Table, Chair, Burger, Pizza.
 Via https://poly.pizza (model pages credit "Quaternius", CC0).
 
+## AI-generated UI icons (user-approved exception, 2026-10-03)
+Small crisp dish + shop icons in public/icons/ (curry, noodles, burger, pizza,
+tea, soup, salad, cake, table, stove, room, decor) were generated with the
+media pipeline at the user's explicit request ("you can use ai if u want").
+Permission covers icons and color/material enhancement ONLY. Character/scene
+art and all 3D models remain hand-made as above — the sprite-sheet ban stands.
+
 ## Procedural (built in code, matching low-poly style)
-Player + guest characters (capsule/sphere chibi with 4 hairstyles, tintable
-skin/hair/shirt), curry / noodle / tea / soup / salad / cake dishes, room,
-plants, shelves, room doors, order bubbles, floor/wall canvas textures.
+Player + guest characters (cute chibi with fringe hairstyles, blush, blinking
+eyes, idle animation, tintable skin/hair/shirt; player wears a staff apron),
+curry / noodle / tea / soup / salad / cake dishes, inn rooms (bed, blanket,
+pillows, bedside lamp, rug), pendant lamps, tablecloths, rugs, plants, shelves,
+paintings, chalkboard menu, wall clock, window view, awning, outdoor grass,
+trees and path, order bubbles, floor/wall canvas textures.
 
 Thank you to all the artists who share their work freely.

@@ -1,6 +1,5 @@
 import { Recipe, ShopItem, CharCustom, RECIPES, SKIN_TONES, HAIR_STYLES, HAIR_COLORS, SHIRT_COLORS, QUALITY_MULT } from './game/data';
 import { SaveData } from './systems/save';
-import { drawDishIcon, drawShopIcon } from './game/three';
 import { HudState, SummaryData } from './game/sim';
 import { sfx } from './systems/audio';
 
@@ -13,20 +12,30 @@ function el(tag: string, cls: string, html = '') {
   return e;
 }
 
-export function dishIconCanvas(id: string, size: number): HTMLCanvasElement {
-  const cv = document.createElement('canvas');
-  cv.width = cv.height = size;
-  const ctx = cv.getContext('2d')!;
-  drawDishIcon(ctx, id, size / 2, size / 2, size * 0.9);
-  return cv;
+// Crisp AI-generated icons (public/icons/). Circular crop via CSS handles the
+// solid icon backgrounds.
+export function dishIconImg(id: string, size: number): HTMLImageElement {
+  const img = document.createElement('img');
+  img.src = './icons/dish-' + id + '.webp';
+  img.width = size; img.height = size;
+  img.className = 'dish-icon';
+  img.alt = id;
+  img.draggable = false;
+  return img;
 }
 
-export function shopIconCanvas(itemId: string, size: number): HTMLCanvasElement {
-  const cv = document.createElement('canvas');
-  cv.width = cv.height = size;
-  const ctx = cv.getContext('2d')!;
-  drawShopIcon(ctx, itemId, size / 2, size / 2, size * 0.9);
-  return cv;
+const SHOP_ICON_FILE: Record<string, string> = {
+  table: 'icon-table', stove: 'icon-stove', station: 'icon-stove',
+  room: 'icon-room', decor: 'icon-decor',
+};
+export function shopIconImg(itemId: string, size: number): HTMLImageElement {
+  const img = document.createElement('img');
+  img.src = './icons/' + (SHOP_ICON_FILE[itemId] ?? 'dish-curry') + '.webp';
+  img.width = size; img.height = size;
+  img.className = 'dish-icon';
+  img.alt = itemId;
+  img.draggable = false;
+  return img;
 }
 
 export class UI {
@@ -89,6 +98,7 @@ export class UI {
     const c = el('div', 'custom-screen');
     c.innerHTML = `<div class="custom-panel">
       <h2>Meet the Chef</h2>
+      <p class="custom-sub">This is you — apron and all.</p>
       <div class="custom-rows"></div>
       <button class="btn primary big">Open the Cafe →</button>
     </div>`;
@@ -136,14 +146,14 @@ export class UI {
     const h = el('div', 'hud');
     h.innerHTML = `
       <div class="hud-left">
-        <div class="hud-day">Day 1</div>
+        <div class="hud-chip hud-day">Day 1</div>
         <div class="clockbar"><div class="clockfill"></div><div class="clocklabel">0:00</div></div>
       </div>
       <div class="hud-right">
-        <div class="hud-coins">🪙 0</div>
-        <div class="hud-rep">⭐ 0</div>
-        <button class="btn small" data-a="shop">🛒 Shop</button>
-        <button class="btn small" data-a="pause">⏸</button>
+        <div class="hud-chip hud-coins">🪙 0</div>
+        <div class="hud-chip hud-rep">⭐ 0</div>
+        <button class="btn small hud-btn" data-a="shop">🛒 Shop</button>
+        <button class="btn small hud-btn" data-a="pause">⏸</button>
       </div>`;
     (h.querySelector('[data-a="shop"]') as HTMLButtonElement).onclick = () => { sfx.click(); this.onShop(); };
     (h.querySelector('[data-a="pause"]') as HTMLButtonElement).onclick = () => { sfx.click(); this.onPause(); };
@@ -245,7 +255,7 @@ export class UI {
     const list = el('div', 'recipe-list');
     recipes.forEach((r) => {
       const row = el('button', 'recipe-row');
-      row.append(dishIconCanvas(r.id, 52));
+      row.append(dishIconImg(r.id, 52));
       const mid = el('div', 'recipe-mid', `<b>${r.name}</b><span>${r.price}c · ${r.time}s</span>`);
       row.append(mid);
       row.onclick = () => { sfx.click(); this.cookMinigame(body, close, r, stoveLevel, onDone); };
@@ -270,7 +280,7 @@ export class UI {
       </div>
       <div class="mg-hint">Stop in the <b class="gold">gold</b> for PERFECT (${QUALITY_MULT.perfect}× pay)</div>
       <button class="btn primary big">STOP</button>`;
-    wrap.querySelector('.mg-head')!.append(dishIconCanvas(r.id, 56), el('b', '', r.name));
+    wrap.querySelector('.mg-head')!.append(dishIconImg(r.id, 56), el('b', '', r.name));
     body.appendChild(wrap);
     const marker = wrap.querySelector('.mg-marker') as HTMLElement;
     const stopBtn = wrap.querySelector('.btn') as HTMLButtonElement;
@@ -313,9 +323,9 @@ export class UI {
         const card = el('div', 'shop-card' + (maxed ? ' maxed' : ''));
         if (it.icon.startsWith('food_')) {
           const iconId = RECIPES[parseInt(it.icon.slice(5), 10)]?.id ?? 'burger';
-          card.append(dishIconCanvas(iconId, 44));
+          card.append(dishIconImg(iconId, 44));
         } else {
-          card.append(shopIconCanvas(it.id, 44));
+          card.append(shopIconImg(it.id, 44));
         }
         const info = el('div', 'shop-info',
           `<b>${it.name}</b><span>${it.desc}</span>`);

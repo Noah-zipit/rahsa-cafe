@@ -7,8 +7,10 @@ import {
   Recipe, ShopItem, CharCustom,
 } from './data';
 import {
-  buildRoom, setupLights, setupCamera, placeGLB, makeCharacter, makeFood,
-  makeBubble, setPatience, pottedPlant, wallShelf, roomDoor, CharParts, loadModel, normalizeModel,
+  buildRoom, buildEnvironment, setupLights, setupCamera, placeGLB, makeCharacter, makeFood,
+  makeBubble, setPatience, pottedPlant, wallShelf, buildInnRoom, innDivider,
+  rugMesh, pendantLamp, tableCenterpiece, ginghamTexture, preloadIcons,
+  CharParts, loadModel, normalizeModel,
 } from './three';
 import { sfx } from '../systems/audio';
 import { SaveData, loadSave, saveSave, defaultSave } from '../systems/save';
@@ -87,10 +89,22 @@ export class CafeSim {
   get tableCount() { return this.save.tables; }
 
   async init(aspect: number) {
-    this.camera = setupCamera(aspect);
+    await preloadIcons(); // crisp AI dish icons for order bubbles
+    this.camera = setupCamera(aspect, this.scene);
     buildRoom(this.scene);
+    buildEnvironment(this.scene);
     setupLights(this.scene);
     this.scene.add(this.decorGroup, this.roomsGroup);
+
+    // Inn nook divider (front-right corner).
+    const div = innDivider();
+    div.position.set(4.35, 0, 3.4);
+    this.scene.add(div);
+    this.obstacles.push(
+      { x: 4.35, z: 2.1, r: 0.55 },
+      { x: 4.35, z: 3.4, r: 0.55 },
+      { x: 4.35, z: 4.7, r: 0.55 },
+    );
 
     // Kitchen furniture.
     const stoveA = await placeGLB('stove', 1.05, STOVE_SPOTS[0].x, STOVE_SPOTS[0].z);
@@ -141,8 +155,8 @@ export class CafeSim {
     if (this.save.stoveLevel >= 2) this.addStoveFx();
     if (this.save.stations > 1) this.addStationFx();
 
-    // Player.
-    const parts = makeCharacter(this.save.char);
+    // Player (staff apron).
+    const parts = makeCharacter(this.save.char, true);
     parts.group.position.set(PLAYER_START.x, 0, PLAYER_START.z);
     this.scene.add(parts.group);
     this.player = { parts, x: PLAYER_START.x, z: PLAYER_START.z, carry: null, carryMesh: null };
@@ -155,6 +169,10 @@ export class CafeSim {
   async addTable(i: number) {
     const s = TABLE_SPOTS[i];
     const g = new THREE.Group();
+    // Round patterned rug under the table.
+    const rug = rugMesh(1.3, i % 2 ? 0xb04038 : 0x3d7dd9, 0xe8c93d);
+    rug.position.y = 0.012;
+    g.add(rug);
     const isRound = i % 2 === 1;
     const t = await placeGLB(isRound ? 'table_round' : 'table_small', 0.78, 0, 0);
     g.add(t.obj);
@@ -163,11 +181,19 @@ export class CafeSim {
       c.obj.position.z = 0;
       g.add(c.obj);
     }
-    // tablecloth
+    // gingham tablecloth
+    const clothTex = ginghamTexture(i % 2 ? '#c96058' : '#3d7dd9');
     const cloth = new THREE.Mesh(new THREE.CylinderGeometry(0.52, 0.52, 0.04, 12),
-      new THREE.MeshStandardMaterial({ color: i % 2 ? 0xe8d9b8 : 0xc96058, roughness: 0.95 }));
+      new THREE.MeshStandardMaterial({ map: clothTex, roughness: 0.95 }));
     cloth.position.y = 0.795; cloth.castShadow = true;
     g.add(cloth);
+    // flower centerpiece
+    const center = tableCenterpiece();
+    center.position.y = 0.815;
+    g.add(center);
+    // pendant lamp hanging above
+    const lamp = pendantLamp();
+    g.add(lamp);
     g.position.set(s.x, 0, s.z);
     this.scene.add(g);
     this.tables.push({ idx: i, x: s.x, z: s.z, group: g, guest: null });
@@ -191,9 +217,10 @@ export class CafeSim {
 
   addRoom(i: number) {
     const s = ROOM_SPOTS[i % ROOM_SPOTS.length];
-    const d = roomDoor();
-    d.position.set(s.x, 0, s.z + 0.1);
-    this.roomsGroup.add(d);
+    const room = buildInnRoom();
+    room.position.set(s.x, 0, s.z);
+    this.roomsGroup.add(room);
+    this.obstacles.push({ x: s.x, z: s.z, r: 1.0 });
   }
 
   addStoveFx() {

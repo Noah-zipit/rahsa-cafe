@@ -85,7 +85,7 @@ export const KITCHEN_POS = {
   fridge: { x: 4.4, z: -4.0 },
   drawer: { x: -0.8, z: -4.15 },
 };
-export const ROOM_SPOTS = [{ x: 5.6, z: -4.85 }, { x: 6.3, z: -4.85 }, { x: 4.9, z: -4.85 }];
+export const ROOM_SPOTS = [{ x: 5.55, z: 2.2 }, { x: 5.55, z: 3.3 }, { x: 5.55, z: 4.35 }];
 export const ROOM_NIGHTLY = 25;
 export const DOOR_POS = { x: 0, z: 5.4 };
 export const GUEST_SPAWN = { x: 0, z: 7.2 };

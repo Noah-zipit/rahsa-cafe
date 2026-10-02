@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import './style.css';
 import { UI } from './ui';
 import { CafeSim, SummaryData } from './game/sim';
-import { makeCharacter, setupLights, CharParts } from './game/three';
+import { makeCharacter, setupLights, frameCamera, CharParts } from './game/three';
 import { loadSave, saveSave, clearSave, defaultSave } from './systems/save';
 import { sfx } from './systems/audio';
 import { RECIPES, RECIPE_MAP, SHOP_ITEMS, CharCustom } from './game/data';
@@ -18,7 +18,7 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.12;
+renderer.toneMappingExposure = 1.18;
 root.appendChild(renderer.domElement);
 const loading = document.createElement('div');
 loading.className = 'loading';
@@ -63,16 +63,32 @@ function showCustomize() {
   ui.hideTitle(); ui.hideHud(); ui.closePanel();
   const save = loadSave() ?? defaultSave();
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x2a1a10);
-  scene.fog = new THREE.Fog(0x2a1a10, 8, 20);
+  scene.background = new THREE.Color(0x6b4a2e);
+  scene.fog = new THREE.Fog(0x6b4a2e, 8, 22);
   setupLights(scene);
+  // warm wooden stage
+  const stageTex = new THREE.CanvasTexture((() => {
+    const cv = document.createElement('canvas'); cv.width = cv.height = 128;
+    const cx = cv.getContext('2d')!;
+    cx.fillStyle = '#a5713f'; cx.fillRect(0, 0, 128, 128);
+    cx.strokeStyle = 'rgba(70,40,18,0.4)'; cx.lineWidth = 2;
+    for (let i = 0; i < 4; i++) { cx.beginPath(); cx.moveTo(0, i * 32); cx.lineTo(128, i * 32); cx.stroke(); }
+    return cv;
+  })());
   const disc = new THREE.Mesh(
-    new THREE.CylinderGeometry(1.0, 1.0, 0.12, 24),
-    new THREE.MeshStandardMaterial({ color: 0x8a5f36, roughness: 0.9 }),
+    new THREE.CylinderGeometry(1.15, 1.25, 0.14, 28),
+    new THREE.MeshStandardMaterial({ map: stageTex, roughness: 0.9 }),
   );
-  disc.position.y = -0.06; disc.receiveShadow = true;
+  disc.position.y = -0.07; disc.receiveShadow = true;
   scene.add(disc);
-  const char = makeCharacter(save.char);
+  // soft backdrop glow disc behind the character
+  const glow = new THREE.Mesh(
+    new THREE.CircleGeometry(1.9, 32),
+    new THREE.MeshBasicMaterial({ color: 0xffd98a, transparent: true, opacity: 0.22, fog: false }),
+  );
+  glow.position.set(0, 1.1, -1.2);
+  scene.add(glow);
+  const char = makeCharacter(save.char, true); // staff apron, matches in-game player
   scene.add(char.group);
   const camera = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 0.1, 50);
   camera.position.set(0, 1.35, 2.9);
@@ -164,7 +180,7 @@ function pollKeys() {
 window.addEventListener('resize', () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
   const a = window.innerWidth / window.innerHeight;
-  if (sim && activeCamera === sim.camera) { sim.camera.aspect = a; sim.camera.updateProjectionMatrix(); }
+  if (sim && activeCamera === sim.camera) { frameCamera(sim.camera, sim.scene, a); }
   if (preview && activeCamera === preview.camera) { preview.camera.aspect = a; preview.camera.updateProjectionMatrix(); }
 });
 
