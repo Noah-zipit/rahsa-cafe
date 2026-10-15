@@ -8,7 +8,13 @@
     "build": "vite build",
     "preview": "vite preview --port 4173"
   },
-  "keywords": [],
+  "keywords": [
+    "cafe-sim",
+    "cozy-game",
+    "three.js",
+    "vite",
+    "typescript"
+  ],
   "author": "Ashar Qaisar <noahext994@gmail.com>",
   "license": "ISC",
   "devDependencies": {
