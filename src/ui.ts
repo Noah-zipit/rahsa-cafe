@@ -115,6 +115,7 @@ export class UI {
       const sw = el('div', 'swatches');
       colors.forEach((col) => {
         const s = el('button', 'sw' + (get() === col ? ' sel' : ''));
+        s.setAttribute('aria-label', label + ' color ' + hex(col));
         s.style.background = hex(col);
         s.onclick = () => { sfx.click(); set(col); onChange({ ...cur }); refresh(); };
         sw.appendChild(s);
@@ -159,7 +160,7 @@ export class UI {
         <div class="hud-chip hud-coins">🪙 0</div>
         <div class="hud-chip hud-rep">⭐ 0</div>
         <button class="btn small hud-btn" data-a="shop">🛒 Shop</button>
-        <button class="btn small hud-btn" data-a="pause">⏸</button>
+        <button class="btn small hud-btn" data-a="pause" aria-label="Pause">⏸</button>
       </div>`;
     (h.querySelector('[data-a="shop"]') as HTMLButtonElement).onclick = () => { sfx.click(); this.onShop(); };
     (h.querySelector('[data-a="pause"]') as HTMLButtonElement).onclick = () => { sfx.click(); this.onPause(); };
@@ -263,7 +264,7 @@ export class UI {
   private openPanel(title: string): { body: HTMLElement; close: () => void; panel: HTMLElement } {
     this.closePanel();
     const p = el('div', 'panel-wrap');
-    p.innerHTML = `<div class="panel"><div class="panel-head"><h2>${title}</h2><button class="btn small x">✕</button></div><div class="panel-body"></div></div>`;
+    p.innerHTML = `<div class="panel"><div class="panel-head"><h2>${title}</h2><button class="btn small x" aria-label="Close panel">✕</button></div><div class="panel-body"></div></div>`;
     const body = p.querySelector('.panel-body') as HTMLElement;
     const close = () => { p.remove(); };
     (p.querySelector('.x') as HTMLButtonElement).onclick = () => { sfx.click(); close(); (this as { onPanelClose: () => void }).onPanelClose?.(); };
@@ -367,7 +368,9 @@ export class UI {
         let qty = 1;
         const qtyLabel = el('span', 'qty', '×1');
         const minus = el('button', 'btn small', '−') as HTMLButtonElement;
+        minus.setAttribute('aria-label', 'Decrease quantity');
         const plus = el('button', 'btn small', '+') as HTMLButtonElement;
+        plus.setAttribute('aria-label', 'Increase quantity');
         const buy = el('button', 'btn small primary', '') as HTMLButtonElement;
         const upd = () => {
           qtyLabel.textContent = '×' + qty;
