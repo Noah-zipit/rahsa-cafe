@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import {
-  RECIPES, RECIPE_MAP, SHOP_ITEMS, QUALITY_MULT, INGREDIENTS, ING_MAP,
+  RECIPES, RECIPE_MAP, QUALITY_MULT, ING_MAP,
   TABLE_SPOTS, STOVE_SPOTS, DECOR_SPOTS, KITCHEN_POS, COUNTER_POS, ROOM_SPOTS,
   ROOM_NIGHTLY, GUEST_SPAWN, PLAYER_START, FLOOR_BOUNDS, DAY_LENGTH,
   SKIN_TONES, HAIR_STYLES, HAIR_COLORS, SHIRT_COLORS,
@@ -8,7 +8,7 @@ import {
   RUSH_TIMES, RUSH_DURATION, RUSH_SPAWN_DIV, RUSH_TIP_MULT,
   CRITIC_WINDOW, CRITIC_REP_WIN, CRITIC_REP_LOSE,
   MARKET_POS, MARKET_INTERACT_R,
-  Recipe, ShopItem, CharCustom, Ingredient,
+  Recipe, ShopItem, CharCustom,
 } from './data';
 import {
   buildRoom, buildEnvironment, buildMarketStall, setupLights, setupCamera, placeGLB, makeCharacter, makeFood,
