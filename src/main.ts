@@ -5,7 +5,7 @@ import { CafeSim, SummaryData } from './game/sim';
 import { makeCharacter, setupLights, frameCamera, panCamera, zoomCamera, resetCameraView, CharParts } from './game/three';
 import { loadSave, saveSave, clearSave, defaultSave } from './systems/save';
 import { sfx } from './systems/audio';
-import { RECIPES, RECIPE_MAP, SHOP_ITEMS, ING_MAP, CharCustom } from './game/data';
+import { RECIPES, RECIPE_MAP, SHOP_ITEMS, CharCustom } from './game/data';
 
 const root = document.getElementById('game')!;
 
