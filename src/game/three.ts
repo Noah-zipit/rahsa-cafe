@@ -785,18 +785,6 @@ export function pottedPlant(): THREE.Group {
   return g;
 }
 
-function lowPolyTree(s = 1): THREE.Group {
-  const g = new THREE.Group();
-  const trunk = cyl(0.14 * s, 0.2 * s, 1.1 * s, 0x6b4423, 7); trunk.position.y = 0.55 * s; g.add(trunk);
-  const blobs: [number, number, number, number][] = [
-    [0, 1.5, 0, 0.85], [-0.5, 1.2, 0.2, 0.55], [0.5, 1.25, -0.15, 0.6],
-  ];
-  for (const [x, y, z, r] of blobs) {
-    const b = sph(r * s, PAL.plant, 8, 6); b.position.set(x * s, y * s, z * s); g.add(b);
-  }
-  return g;
-}
-
 export function wallShelf(): THREE.Group {
   const g = new THREE.Group();
   const shelf = box(1.1, 0.08, 0.35, PAL.wood, 0, 0, 0); g.add(shelf);
@@ -1105,7 +1093,7 @@ export function bench(): THREE.Group {
 }
 
 /** Neighboring town building: pastel front with warm windows, door, awning. */
-export function townBuilding(w: number, h: number, color: number, awningCol = '#c96058'): THREE.Group {
+export function townBuilding(w: number, h: number, color: number): THREE.Group {
   const g = new THREE.Group();
   const d = 7;
   const body = box(w, h, d, color, 0, h / 2, 0); g.add(body);
@@ -1117,7 +1105,6 @@ export function townBuilding(w: number, h: number, color: number, awningCol = '#
   const rows = Math.max(1, Math.floor((h - 2.4) / 2.4));
   const cols = Math.max(2, Math.floor(w / 2.4));
   const winMat = new THREE.MeshStandardMaterial({ color: 0xffe9b8, emissive: 0xffc46a, emissiveIntensity: 0.9, roughness: 0.6 });
-  const frameMat = mat(0x5a3a22);
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
       const wx = (c - (cols - 1) / 2) * 2.4;
