@@ -45,7 +45,7 @@ export function loadSave(): SaveData | null {
     if (raw2) {
       const d = JSON.parse(raw2);
       if (typeof d.coins !== 'number') return null;
-      return { ...defaultSave(), ...d, version: 2 as const, pantry: { ...defaultPantry(), ...(d.pantry ?? {}) } };
+      return { ...defaultSave(), ...d, version: 2 as const, pantry: { ...defaultPantry(), ...d.pantry } };
     }
     // Migrate a v1 save (pre-market): keep progress, grant a starter pantry.
     // Old v1 saves must never crash the new build — migrate, don't drop.
